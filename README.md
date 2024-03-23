@@ -1,3 +1,3 @@
 # gitslam
-Monocular SLAM
-Stereo SLAM Soon..
+- Monocular SLAM
+- Stereo SLAM Soon..
