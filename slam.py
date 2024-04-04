@@ -14,6 +14,8 @@ def process_frames(frame: np.ndarray):
     matches = fe.extract(img)
 
     for pt1, pt2 in matches:
+        pt1 += img.shape[0] // 2
+        pt2 += img.shape[1] // 2
         u1, v1 = map(lambda x: int(round(x)), pt1)
         u2, v2 = map(lambda x: int(round(x)), pt2)
 

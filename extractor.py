@@ -36,12 +36,17 @@ class Extractor(object):
         # Filter
         if len(ret) > 0:
             ret = np.array(ret)
+
+            #Cords Normalize
+            ret[:, :, 0] -= img.shape[0] // 2
+            ret[:, :, 1] -= img.shape[1] // 2
+
             model, inliers = ransac((ret[:, 0], ret[:, 1]),
                                                 FundamentalMatrixTransform, #TODO:Replace it with EssentialMatrix
                                                 min_samples=8,
                                                 residual_threshold=1,
                                                 max_trials=100)
-
+            print(sum(inliers))
             ret = ret[inliers]
 
         self.last = {'kps': kps, 'desc': desc}
