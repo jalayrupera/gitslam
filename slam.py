@@ -4,8 +4,11 @@ import numpy as np
 from constants import VIDEO_PATH, W, H
 from extractor import Extractor
 
+F = 1
+K = np.array([[F, 0, W//2], [0, F, H//2], [0, 0, 1]])
+
 cap = cv2.VideoCapture(VIDEO_PATH)
-fe = Extractor()
+fe = Extractor(K)
 
 
 def process_frames(frame: np.ndarray):
@@ -14,13 +17,11 @@ def process_frames(frame: np.ndarray):
     matches = fe.extract(img)
 
     for pt1, pt2 in matches:
-        pt1 += img.shape[0] // 2
-        pt2 += img.shape[1] // 2
-        u1, v1 = map(lambda x: int(round(x)), pt1)
-        u2, v2 = map(lambda x: int(round(x)), pt2)
+        u1, v1 = fe.denormalize(pt1)
+        u2, v2 = fe.denormalize(pt2)
 
         cv2.circle(img, (u1,v1), color=(0,255,0), radius=3)
-        cv2.line(img, (u1, v1), (u2,v2), color=(255, 0, 0), thickness=2)
+        cv2.line(img, (u1, v1), (u2,v2), color=(255, 0, 0))
 
     cv2.imshow("Git SLAM", img)
     cv2.waitKey(1)
