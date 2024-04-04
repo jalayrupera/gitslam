@@ -4,7 +4,7 @@ import numpy as np
 from constants import VIDEO_PATH, W, H
 from extractor import Extractor
 
-F = 1
+F = 290
 K = np.array([[F, 0, W//2], [0, F, H//2], [0, 0, 1]])
 
 cap = cv2.VideoCapture(VIDEO_PATH)
@@ -14,7 +14,13 @@ fe = Extractor(K)
 def process_frames(frame: np.ndarray):
     img: np.ndarray = cv2.resize(frame, (W, H))  # noqa: F405
 
-    matches = fe.extract(img)
+    matches, Rt = fe.extract(img)
+
+    if Rt is None:
+        return
+
+    print("%d matches" % (len(matches)))
+    print(Rt)
 
     for pt1, pt2 in matches:
         u1, v1 = fe.denormalize(pt1)

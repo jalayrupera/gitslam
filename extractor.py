@@ -1,5 +1,4 @@
 import cv2
-from networkx import inverse_line_graph
 import numpy as np
 
 from skimage.measure import ransac
@@ -11,6 +10,25 @@ from constants import NUM_OF_ORBS
 def add_ones(x):
     return np.concatenate([x, np.ones((x.shape[0], 1))], axis=1)
 
+
+def extract_rt(E):
+    W = np.mat([[0, -1, 0], [1, 0, 0], [0,0,1]], dtype=float)
+    U, w, Vt = np.linalg.svd(E)
+    
+    assert np.linalg.det(U) > 0
+
+    if np.linalg.det(Vt) < 0:
+        Vt *= -1.0
+
+    R = np.dot(np.dot(U, W), Vt)
+    if np.sum(R.diagonal()) < 0:
+        R = np.dot(np.dot(U, W.T), Vt)
+    
+    t = U[:, 2]
+
+    Rt = np.concatenate([R, t.reshape(3,1)], axis=1)
+
+    return Rt
 
 class Extractor(object):
     def __init__(self, K):
@@ -49,6 +67,7 @@ class Extractor(object):
                     kp2 = self.last['kps'][m.trainIdx].pt
                     ret.append((kp1, kp2))
 
+        Rt = None
         # Filter
         if len(ret) > 0:
             ret = np.array(ret)
@@ -58,15 +77,15 @@ class Extractor(object):
             ret[:, 1, :] = self.normalize(ret[:, 1, :])
 
             model, inliers = ransac((ret[:, 0], ret[:, 1]),
-                                                FundamentalMatrixTransform, #TODO:Replace it with EssentialMatrix
+                                                EssentialMatrixTransform,
+                                                # FundamentalMatrixTransform, #TODO:Replace it with EssentialMatrix
                                                 min_samples=8,
-                                                residual_threshold=1,
-                                                max_trials=100)
-
-            u, s, v = np.linalg.svd(model.params)
-            print(s)
+                                                # residual_threshold=1,
+                                                residual_threshold=0.005,
+                                                max_trials=200)
 
             ret = ret[inliers]
+            Rt = extract_rt(model.params)
 
         self.last = {'kps': kps, 'desc': desc}
-        return ret
+        return ret, Rt
