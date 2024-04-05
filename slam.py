@@ -1,9 +1,11 @@
 import cv2
 import numpy as np
+import g2o
 
 from constants import VIDEO_PATH, W, H
 from extractor import Extractor
 
+# Camera Intrinsics
 F = 290
 K = np.array([[F, 0, W//2], [0, F, H//2], [0, 0, 1]])
 
