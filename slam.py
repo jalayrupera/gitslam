@@ -22,9 +22,9 @@ def process_frames(frame: np.ndarray):
     if len(frames) <= 1:
         return
 
-    ret, Rt = match_frames(frames[-1], frames[-2])
+    pts, Rt = match_frames(frames[-1], frames[-2])
 
-    for pt1, pt2 in ret:
+    for pt1, pt2 in pts:
         u1, v1 = denormalize(K, pt1)
         u2, v2 = denormalize(K, pt2)
 
