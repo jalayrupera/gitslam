@@ -3,30 +3,30 @@ import numpy as np
 import g2o
 
 from constants import VIDEO_PATH, W, H
-from extractor import Extractor
+from frame import Frame, match, denormalize
 
 # Camera Intrinsics
 F = 290
 K = np.array([[F, 0, W//2], [0, F, H//2], [0, 0, 1]])
 
 cap = cv2.VideoCapture(VIDEO_PATH)
-fe = Extractor(K)
 
+frames = []
 
 def process_frames(frame: np.ndarray):
     img: np.ndarray = cv2.resize(frame, (W, H))  # noqa: F405
 
-    matches, Rt = fe.extract(img)
+    new_frame = Frame(img, K)
+    frames.append(new_frame)
 
-    if Rt is None:
+    if len(frames) <= 1:
         return
 
-    print("%d matches" % (len(matches)))
-    print(Rt)
+    ret, Rt = match(frames[-1], frames[-2])
 
-    for pt1, pt2 in matches:
-        u1, v1 = fe.denormalize(pt1)
-        u2, v2 = fe.denormalize(pt2)
+    for pt1, pt2 in ret:
+        u1, v1 = denormalize(K, pt1)
+        u2, v2 = denormalize(K, pt2)
 
         cv2.circle(img, (u1,v1), color=(0,255,0), radius=3)
         cv2.line(img, (u1, v1), (u2,v2), color=(255, 0, 0))
