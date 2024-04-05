@@ -3,7 +3,7 @@ import numpy as np
 import g2o
 
 from constants import VIDEO_PATH, W, H
-from frame import Frame, match, denormalize
+from frame import Frame, match_frames, denormalize
 
 # Camera Intrinsics
 F = 290
@@ -22,7 +22,7 @@ def process_frames(frame: np.ndarray):
     if len(frames) <= 1:
         return
 
-    ret, Rt = match(frames[-1], frames[-2])
+    ret, Rt = match_frames(frames[-1], frames[-2])
 
     for pt1, pt2 in ret:
         u1, v1 = denormalize(K, pt1)

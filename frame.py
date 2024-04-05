@@ -43,7 +43,7 @@ def extract_rt(E):
     return Rt
 
 
-def match(f1, f2):
+def match_frames(f1, f2):
     bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 
     ret = []
@@ -62,7 +62,7 @@ def match(f1, f2):
                                         # FundamentalMatrixTransform, #TODO:Replace it with EssentialMatrix
                                         min_samples=8,
                                         # residual_threshold=1,
-                                        residual_threshold=0.05,
+                                        residual_threshold=0.005,
                                         max_trials=200)
 
     ret = ret[inliers]
