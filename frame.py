@@ -1,13 +1,10 @@
 import cv2
 import numpy as np
 
-from constants import NUM_OF_ORBS
-
-import cv2
-import numpy as np
 from skimage.measure import ransac
 from skimage.transform import FundamentalMatrixTransform, EssentialMatrixTransform
 
+from constants import NUM_OF_ORBS
 
 def add_ones(x):
     return np.concatenate([x, np.ones((x.shape[0], 1))], axis=1)
