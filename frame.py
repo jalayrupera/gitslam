@@ -69,7 +69,7 @@ def match_frames(f1, f2):
                                         # FundamentalMatrixTransform, #TODO:Replace it with EssentialMatrix
                                         min_samples=8,
                                         # residual_threshold=1,
-                                        residual_threshold=0.005,
+                                        residual_threshold=0.05,
                                         max_trials=200)
 
     Rt = extract_rt(model.params)
@@ -92,10 +92,13 @@ def extract(img:np.ndarray):
 
 
 class Frame(object):
-    def __init__(self, img, K):
+    def __init__(self, mapp, img, K):
         self.K = K
         self.Kinv = np.linalg.inv(self.K)
 
         pts, self.des = extract(img)
         self.pts = normalize(self.Kinv, pts)
         self.pose = IRt
+
+        self.id = len(mapp.frames)
+        mapp.frames.append(self)

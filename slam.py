@@ -3,7 +3,7 @@ import numpy as np
 import g2o
 
 from constants import VIDEO_PATH, W, H
-from frame import Frame, match_frames, denormalize, IRt
+from frame import Frame, match_frames, denormalize
 
 # Camera Intrinsics
 F = 290
@@ -11,13 +11,31 @@ K = np.array([[F, 0, W//2], [0, F, H//2], [0, 0, 1]])
 
 cap = cv2.VideoCapture(VIDEO_PATH)
 
-frames: list[Frame] = []
+
+class Map(object):
+    def __init__(self):
+        self.frames: list[Frame] = []
+        self.points = []
+
+    def display(self):
+        for f in self.frames:
+            print(f.id)
+            print(f.pose)
+
+        for p in self.points:
+            print(p.xyz)
+
+mapp = Map()
+
 
 class Point(object):
-    def __init__(self, loc):
+    def __init__(self, mapp: Map, loc):
         self.frames = []
-        self.location = loc
+        self.xyz = loc
         self.idxs = []
+        self.id = len(mapp.points)
+        mapp.points.append(self)
+
 
     def add_observation(self, frame, idx):
         self.frames.append(frame)
@@ -28,20 +46,22 @@ def triangulate(pose1, pose2, pts1, pts2):
     return cv2.triangulatePoints(pose1[:3], pose2[:3], pts1.T, pts2.T).T
 
 
-def process_frames(frame: np.ndarray):
-    img: np.ndarray = cv2.resize(frame, (W, H))  # noqa: F405
+def process_frames(img: np.ndarray):
+    img: np.ndarray = cv2.resize(img, (W, H))  # noqa: F405
 
-    new_frame = Frame(img, K)
-    frames.append(new_frame)
+    new_frame = Frame(mapp, img, K)
 
-    if len(frames) <= 1:
+    if new_frame.id == 0:
         return
+    
+    f1 = mapp.frames[-1]
+    f2 = mapp.frames[-2]
 
-    idx1, idx2, Rt = match_frames(frames[-1], frames[-2])
-    frames[-1].pose = np.dot(Rt, frames[-2].pose)
+    idx1, idx2, Rt = match_frames(f1, f2)
+    f1.pose = np.dot(Rt, f2.pose)
 
     # Homogeneous 3d Coords
-    pts4d = triangulate(frames[-1].pose, frames[-2].pose, frames[-1].pts[idx1], frames[-2].pts[idx2])
+    pts4d = triangulate(f1.pose, f2.pose, f1.pts[idx1], f2.pts[idx2])
     pts4d /= pts4d[:, 3:]
 
 
@@ -52,11 +72,11 @@ def process_frames(frame: np.ndarray):
         if not good_pts4d[i]:
             continue
 
-        pt = Point(p)
-        pt.add_observation(frames[-1], idx1[i])
-        pt.add_observation(frames[-2], idx2[i])
+        pt = Point(mapp, p)
+        pt.add_observation(f1, idx1[i])
+        pt.add_observation(f2, idx2[i])
 
-    for pt1, pt2 in zip(frames[-1].pts[idx1], frames[-2].pts[idx2]):
+    for pt1, pt2 in zip(f1.pts[idx1], f2.pts[idx2]):
         u1, v1 = denormalize(K, pt1)
         u2, v2 = denormalize(K, pt2)
 
@@ -64,6 +84,9 @@ def process_frames(frame: np.ndarray):
         cv2.line(img, (u1, v1), (u2,v2), color=(255, 0, 0))
 
     cv2.imshow("Git SLAM", img)
+
+    mapp.display()
+
     cv2.waitKey(1)
 
 def main():
