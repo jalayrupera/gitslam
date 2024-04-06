@@ -6,6 +6,8 @@ from skimage.transform import FundamentalMatrixTransform, EssentialMatrixTransfo
 
 from constants import NUM_OF_ORBS
 
+IRt = np.eye(4)
+
 def add_ones(x):
     return np.concatenate([x, np.ones((x.shape[0], 1))], axis=1)
 
@@ -35,24 +37,32 @@ def extract_rt(E):
 
     t = U[:, 2]
 
-    Rt = np.concatenate([R, t.reshape(3,1)], axis=1)
+    ret = np.eye(4)
+    ret[:3, :3] = R
+    ret[:3, 3] = t
 
-    return Rt
+    return ret
 
 
 def match_frames(f1, f2):
     bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 
     ret = []
+    idx1, idx2 = [], []
     matches = bf.knnMatch(f1.des, f2.des, k=2)
     for m, n in matches:
         if m.distance < 0.75*n.distance:
+            idx1.append(m.queryIdx)
+            idx2.append(m.trainIdx)
+
             p1 = f1.pts[m.queryIdx]
             p2 = f2.pts[m.trainIdx]
             ret.append((p1, p2))
 
     assert len(ret) >= 8
     ret = np.array(ret)
+    idx1 = np.array(idx1)
+    idx2 = np.array(idx2)
 
     model, inliers = ransac((ret[:, 0], ret[:, 1]),
                                         EssentialMatrixTransform,
@@ -62,10 +72,9 @@ def match_frames(f1, f2):
                                         residual_threshold=0.005,
                                         max_trials=200)
 
-    ret = ret[inliers]
     Rt = extract_rt(model.params)
 
-    return ret, Rt
+    return idx1[inliers], idx2[inliers], Rt
 
 
 def extract(img:np.ndarray):
@@ -89,3 +98,4 @@ class Frame(object):
 
         pts, self.des = extract(img)
         self.pts = normalize(self.Kinv, pts)
+        self.pose = IRt
