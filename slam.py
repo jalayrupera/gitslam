@@ -5,6 +5,11 @@ import g2o
 from constants import VIDEO_PATH, W, H
 from frame import Frame, match_frames, denormalize
 
+from multiprocessing import Queue, Process
+
+import OpenGL.GL as gl
+import pangolin
+
 # Camera Intrinsics
 F = 290
 K = np.array([[F, 0, W//2], [0, F, H//2], [0, 0, 1]])
@@ -16,14 +21,71 @@ class Map(object):
     def __init__(self):
         self.frames: list[Frame] = []
         self.points = []
+        self.state = None
+        self.q = Queue()
+
+        p = Process(target=self.viewer_thread, args=(self.q,))
+        p.daemon = True
+        p.start()
+
+
+    def viewer_thread(self, q):
+        self.viewer_init()
+
+        while 1:
+            self.viewer_refresh(q)
+
+
+    def viewer_init(self):
+        pangolin.CreateWindowAndBind('Main', 640, 480)
+        gl.glEnable(gl.GL_DEPTH_TEST)
+
+        self.scam = pangolin.OpenGlRenderState(
+            pangolin.ProjectionMatrix(640, 480, 420, 420, 320, 240, 0.2, 100),
+            pangolin.ModelViewLookAt(-2, 2, -2, 0, 0, 0, pangolin.AxisDirection.AxisY))
+        handler = pangolin.Handler3D(self.scam)
+
+        self.dcam = pangolin.CreateDisplay()
+        self.dcam.SetBounds(0.0, 1.0, 0.0, 1.0, -640.0/480.0)
+        self.dcam.SetHandler(handler)
+
+
+    def viewer_refresh(self, q):
+        if self.state is None or not q.empty():
+            self.state = q.get()
+
+        ppts = np.array([d[:3, 3] for d in self.state[0]])
+        spts = np.array(self.state[1])
+
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        gl.glClearColor(1.0, 1.0, 1.0, 1.0)
+        self.dcam.Activate(self.scam)
+
+        gl.glPointSize(10)
+        gl.glColor3f(0.0, 1.0, 0.0)
+
+        poss_arr = [[d[:3, 3] for d in self.state[0]], [d for d in self.state[1]]]
+
+        pangolin.DrawPoints(ppts)
+
+        gl.glPointSize(2)
+        gl.glColor3f(0.0, 1.0, 0.0)
+        pangolin.DrawPoints(spts)
+
+        pangolin.FinishFrame()
+
 
     def display(self):
+        poses, pts = [], []
+
         for f in self.frames:
-            print(f.id)
-            print(f.pose)
+            poses.append(f.pose)
 
         for p in self.points:
-            print(p.xyz)
+            pts.append(p.pt)
+        
+        self.q.put((poses, pts))
+
 
 mapp = Map()
 
@@ -31,7 +93,7 @@ mapp = Map()
 class Point(object):
     def __init__(self, mapp: Map, loc):
         self.frames = []
-        self.xyz = loc
+        self.pt = loc
         self.idxs = []
         self.id = len(mapp.points)
         mapp.points.append(self)
@@ -83,11 +145,11 @@ def process_frames(img: np.ndarray):
         cv2.circle(img, (u1,v1), color=(0,255,0), radius=3)
         cv2.line(img, (u1, v1), (u2,v2), color=(255, 0, 0))
 
-    cv2.imshow("Git SLAM", img)
+    # cv2.imshow("Git SLAM", img)
 
     mapp.display()
 
-    cv2.waitKey(1)
+    # cv2.waitKey(1)
 
 def main():
     while cap.isOpened():
