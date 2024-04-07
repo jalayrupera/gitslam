@@ -69,8 +69,8 @@ def match_frames(f1, f2):
                                         # FundamentalMatrixTransform, #TODO:Replace it with EssentialMatrix
                                         min_samples=8,
                                         # residual_threshold=1,
-                                        residual_threshold=0.05,
-                                        max_trials=200)
+                                        residual_threshold=0.02,
+                                        max_trials=100)
 
     Rt = extract_rt(model.params)
 
