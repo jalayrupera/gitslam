@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 from skimage.measure import ransac
-from skimage.transform import EssentialMatrixTransform
+from skimage.transform import EssentialMatrixTransform, FundamentalMatrixTransform
 
 from constants import NUM_OF_ORBS
 
@@ -46,43 +46,49 @@ def extract_rt(E):
 
 def match_frames(f1, f2):
     bf = cv2.BFMatcher(cv2.NORM_HAMMING)
-
-    ret = []
-    idx1, idx2 = [], []
-    idx1s, idx2s = set(), set()
     matches = bf.knnMatch(f1.des, f2.des, k=2)
+
+    # Lowe's ratio test
+    ret = []
+    idx1,idx2 = [], []
+
     for m, n in matches:
         if m.distance < 0.75*n.distance:
-            p1 = f1.pts[m.queryIdx]
-            p2 = f2.pts[m.trainIdx]
-            
-            if m.distance < 32:
-                if m.queryIdx not in idx1s and m.trainIdx not in idx2s:
-                    idx1s.add(m.queryIdx)
-                    idx2s.add(m.trainIdx)
+            p1 = f1.kps[m.queryIdx]
+            p2 = f2.kps[m.trainIdx]
 
+            # travel less than 10% of diagonal and be within orb distance 32
+            if np.linalg.norm((p1-p2)) < 0.1*np.linalg.norm([f1.W, f1.H]) and m.distance < 32:
+            # keep around indices
+            # TODO: refactor this to not be O(N^2)
+                if m.queryIdx not in idx1 and m.trainIdx not in idx2:
                     idx1.append(m.queryIdx)
                     idx2.append(m.trainIdx)
 
                     ret.append((p1, p2))
 
-    assert(len(set(idx1))) == len(idx1)
-    assert(len(set(idx2))) == len(idx2)
+    # no duplicates
+    assert(len(set(idx1)) == len(idx1))
+    assert(len(set(idx2)) == len(idx2))
 
     assert len(ret) >= 8
-
     ret = np.array(ret)
     idx1 = np.array(idx1)
     idx2 = np.array(idx2)
 
+    # fit matrix
     model, inliers = ransac((ret[:, 0], ret[:, 1]),
-                                        EssentialMatrixTransform,
-                                        min_samples=8,
-                                        residual_threshold=0.02,
-                                        max_trials=200)
+                            # EssentialMatrixTransform,
+                            FundamentalMatrixTransform,
+                            min_samples=8,
+                            residual_threshold=0.02,
+                            max_trials=200)
+    print("Matches: %d -> %d -> %d -> %d" % (len(f1.des), len(matches), len(inliers), sum(inliers)))
 
+    # ignore outliers
     Rt = extract_rt(model.params)
 
+    # return
     return idx1[inliers], idx2[inliers], Rt
 
 
@@ -105,8 +111,9 @@ class Frame(object):
         self.K = K
         self.Kinv = np.linalg.inv(self.K)
 
-        pts, self.des = extract(img)
-        self.pts = normalize(self.Kinv, pts)
+        kps, self.des = extract(img)
+        self.kps = normalize(self.Kinv, kps)
+        self.pts = [None]*len(self.kps)
         self.pose = IRt
 
         self.id = len(mapp.frames)
