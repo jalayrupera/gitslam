@@ -1,6 +1,6 @@
 opencv-python
 numpy
 scikit-image
-g2o-python
+# g2o-python
 pyopengl
 pyopengl-accelerate
