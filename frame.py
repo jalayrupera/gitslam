@@ -6,8 +6,6 @@ from skimage.transform import EssentialMatrixTransform, FundamentalMatrixTransfo
 
 from constants import NUM_OF_ORBS
 
-IRt = np.eye(4)
-
 def add_ones(x):
     return np.concatenate([x, np.ones((x.shape[0], 1))], axis=1)
 
@@ -20,6 +18,13 @@ def denormalize(K, pt):
     ret = np.dot(K, np.array([pt[0], pt[1], 1.0]))
     ret /= ret[2]
     return int(round(ret[0])), int(round(ret[1]))
+
+
+def pose_rt(R, t):
+    pose = np.eye(4)
+    pose[:3, :3] = R
+    pose[:3, 3] = t
+    return pose
 
 
 def extract_rt(E):
@@ -37,11 +42,7 @@ def extract_rt(E):
 
     t = U[:, 2]
 
-    ret = np.eye(4)
-    ret[:3, :3] = R
-    ret[:3, 3] = t
-
-    return ret
+    return pose_rt(R, t)
 
 
 def match_frames(f1, f2):
@@ -114,7 +115,7 @@ class Frame(object):
         kps, self.des = extract(img)
         self.kps = normalize(self.Kinv, kps)
         self.pts = [None]*len(self.kps)
-        self.pose = IRt
+        self.pose = np.eye(4)
 
         self.id = len(mapp.frames)
         mapp.frames.append(self)
