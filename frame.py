@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 from skimage.measure import ransac
-from skimage.transform import FundamentalMatrixTransform, EssentialMatrixTransform
+from skimage.transform import EssentialMatrixTransform
 
 from constants import NUM_OF_ORBS
 
@@ -49,28 +49,37 @@ def match_frames(f1, f2):
 
     ret = []
     idx1, idx2 = [], []
+    idx1s, idx2s = set(), set()
     matches = bf.knnMatch(f1.des, f2.des, k=2)
     for m, n in matches:
         if m.distance < 0.75*n.distance:
-            idx1.append(m.queryIdx)
-            idx2.append(m.trainIdx)
-
             p1 = f1.pts[m.queryIdx]
             p2 = f2.pts[m.trainIdx]
-            ret.append((p1, p2))
+            
+            if m.distance < 32:
+                if m.queryIdx not in idx1s and m.trainIdx not in idx2s:
+                    idx1s.add(m.queryIdx)
+                    idx2s.add(m.trainIdx)
+
+                    idx1.append(m.queryIdx)
+                    idx2.append(m.trainIdx)
+
+                    ret.append((p1, p2))
+
+    assert(len(set(idx1))) == len(idx1)
+    assert(len(set(idx2))) == len(idx2)
 
     assert len(ret) >= 8
+
     ret = np.array(ret)
     idx1 = np.array(idx1)
     idx2 = np.array(idx2)
 
     model, inliers = ransac((ret[:, 0], ret[:, 1]),
                                         EssentialMatrixTransform,
-                                        # FundamentalMatrixTransform, #TODO:Replace it with EssentialMatrix
                                         min_samples=8,
-                                        # residual_threshold=1,
                                         residual_threshold=0.02,
-                                        max_trials=100)
+                                        max_trials=200)
 
     Rt = extract_rt(model.params)
 
@@ -92,7 +101,7 @@ def extract(img:np.ndarray):
 
 
 class Frame(object):
-    def __init__(self, mapp, img, K):
+    def __init__(self, mapp, img, K, W, H):
         self.K = K
         self.Kinv = np.linalg.inv(self.K)
 
@@ -102,3 +111,6 @@ class Frame(object):
 
         self.id = len(mapp.frames)
         mapp.frames.append(self)
+
+        self.W = W
+        self.H = H

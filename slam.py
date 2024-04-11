@@ -2,17 +2,31 @@ import cv2
 import numpy as np
 import g2o
 
-from constants import VIDEO_PATH, W, H
+from constants import VIDEO_PATH
 from frame import Frame, match_frames, denormalize
 from pointmap import Map, Point
 
 # Camera Intrinsics
-F = 290
-K = np.array([[F, 0, W//2], [0, F, H//2], [0, 0, 1]])
 
 cap = cv2.VideoCapture(VIDEO_PATH)
 
-mapp = Map()
+W = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+H = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+
+F = 525
+
+if W > 1024:
+    downscale = 1024.0/W
+    F *= downscale
+    H = int(H * downscale)
+    W = 1024
+print("using camera %dx%d with F %f" % (W,H,F))
+
+K = np.array([[F, 0, W//2], [0, F, H//2], [0, 0, 1]])
+
+
+mapp = Map(W, H)
+
 
 def triangulate(pose1, pose2, pts1, pts2):
     ret = np.zeros((pts1.shape[0],4))
@@ -35,7 +49,7 @@ def triangulate(pose1, pose2, pts1, pts2):
 def process_frames(img: np.ndarray):
     img: np.ndarray = cv2.resize(img, (W, H))  # noqa: F405
 
-    new_frame = Frame(mapp, img, K)
+    new_frame = Frame(mapp, img, K, W, H)
 
     if new_frame.id == 0:
         return
