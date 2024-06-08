@@ -9,7 +9,7 @@ from frame import Frame, pose_rt
 class Map(object):
     def __init__(self, W, H):
         self.frames: list[Frame] = []
-        self.points = []
+        self.points: list[Point] = []
         self.state = None
         self.q = Queue()
 
@@ -112,31 +112,37 @@ class Map(object):
         pangolin.DrawCameras(self.state[0])
 
 
-        gl.glPointSize(2)
+        gl.glPointSize(5)
         gl.glColor3f(1.0, 0.0, 0.0)
-        pangolin.DrawPoints(self.state[1])
+        pangolin.DrawPoints(self.state[1], self.state[2])
 
         pangolin.FinishFrame()
 
 
     def display(self):
-        poses, pts = [], []
+        if self.q is None:
+            return
+
+        poses, pts, colors = [], [], []
 
         for f in self.frames:
             poses.append(f.pose)
 
         for p in self.points:
             pts.append(p.pt)
-        
-        self.q.put((np.array(poses), np.array(pts)))
+            colors.append(p.color)
+
+        self.q.put((np.array(poses), np.array(pts), np.array(colors)/256.0))
 
 
 
 class Point(object):
-    def __init__(self, mapp: Map, loc):
+    def __init__(self, mapp: Map, loc, color):
         self.frames = []
         self.pt = loc
         self.idxs = []
+        self.color = np.copy(color)
+
         self.id = len(mapp.points)
         mapp.points.append(self)
 
