@@ -12,6 +12,7 @@ class Map(object):
         self.points: list[Point] = []
         self.state = None
         self.q = Queue()
+        self.max_point = 0
 
         self.W = W
         self.H = H
@@ -60,22 +61,41 @@ class Map(object):
                 edge.set_robust_kernel(robust_kernel)
                 opt.add_edge(edge)
 
-        opt.set_verbose(True)
+        # opt.set_verbose(True)
         opt.initialize_optimization()
         opt.optimize(50)
+        print(f"Optimizer: {opt.chi2()} error")
+
 
         # Put frames back
         for f in self.frames:
-            R = opt.vertex(f.id).estimate().rotation().matrix()
-            t = opt.vertex(f.id).estimate().translation()
+            est = opt.vertex(f.id).estimate()
+            R = est.rotation().matrix()
+            t = est.translation()
             f.pose = pose_rt(R, t)
 
-
-        # Put points back
+        new_points = []
+        # Put points back and cull
         for p in self.points:
             est = opt.vertex(p.id + PT_ID_OFFSET).estimate()
-            p.pt = np.array(est)
 
+            # if len(p.frames) == 2 and p.frames[-1].id < (len(self.frames)-5):
+            #     p.delete()
+            #     continue
+
+            #Reprojection Error
+            errs = []
+            for f in p.frames:
+                uv = f.kpus[f.pts.index(p)]
+                proj = np.dot(f.K, est)
+                proj = proj[0:2] / proj[2]
+                errs.append(np.linalg.norm(proj-uv))
+            if np.mean(errs) > 100:
+                p.delete()
+                continue
+            p.pt = np.array(est)
+            new_points.append(p)        
+        self.points = new_points
 
     def viewer_thread(self):
         self.viewer_init()
@@ -105,7 +125,9 @@ class Map(object):
             self.state = self.q.get()
 
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-        gl.glClearColor(1.0, 1.0, 1.0, 1.0)
+        # gl.glClearColor(1.0, 1.0, 1.0, 1.0)
+        gl.glClearColor(0.0, 0.0, 0.0, 1.0)
+
         self.dcam.Activate(self.scam)
 
         gl.glColor3f(0.0, 1.0, 0.0)
@@ -143,8 +165,15 @@ class Point(object):
         self.idxs = []
         self.color = np.copy(color)
 
-        self.id = len(mapp.points)
+        self.id = mapp.max_point
+        mapp.max_point += 1
         mapp.points.append(self)
+
+
+    def delete(self):
+        for f in self.frames:
+            f.pts[f.pts.index(self)] = None
+        del self
 
 
     def add_observation(self, frame, idx):
