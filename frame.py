@@ -31,7 +31,8 @@ def extract_rt(E):
     W = np.mat([[0, -1, 0], [1, 0, 0], [0,0,1]], dtype=float)
     U, w, Vt = np.linalg.svd(E)
 
-    assert np.linalg.det(U) > 0
+    if np.linalg.det(U) < 0:
+        U *= -1.0
 
     if np.linalg.det(Vt) < 0:
         Vt *= -1.0
@@ -112,8 +113,8 @@ class Frame(object):
         self.K = K
         self.Kinv = np.linalg.inv(self.K)
 
-        kps, self.des = extract(img)
-        self.kps = normalize(self.Kinv, kps)
+        self.kpus, self.des = extract(img)
+        self.kps = normalize(self.Kinv, self.kpus)
         self.pts = [None]*len(self.kps)
         self.pose = np.eye(4)
 
