@@ -101,9 +101,9 @@ class Map(object):
                 errs.append(np.linalg.norm(proj-uv))
             
             #cull
-            if (old_point and np.mean(errs) > 20) or np.mean(errs) > 100:
-                p.delete()
-                continue
+            # if (old_point and np.mean(errs) > 20) or np.mean(errs) > 100:
+            #     p.delete()
+            #     continue
 
             p.pt = np.array(est)
             new_points.append(p)      
