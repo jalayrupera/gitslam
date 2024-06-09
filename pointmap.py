@@ -141,12 +141,13 @@ class Map(object):
 
         self.dcam.Activate(self.scam)
 
-        gl.glColor3f(0.0, 1.0, 0.0)
-        pangolin.DrawCameras(self.state[0])
+        if self.state is not None:
+            gl.glColor3f(0.0, 1.0, 0.0)
+            pangolin.DrawCameras(self.state[0])
 
-        gl.glPointSize(5)
-        gl.glColor3f(1.0, 0.0, 0.0)
-        pangolin.DrawPoints(self.state[1], self.state[2])
+            gl.glPointSize(5)
+            gl.glColor3f(1.0, 0.0, 0.0)
+            pangolin.DrawPoints(self.state[1], self.state[2])
 
         pangolin.FinishFrame()
 

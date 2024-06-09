@@ -10,8 +10,10 @@ from pointmap import Map, Point
 
 cap = cv2.VideoCapture(VIDEO_PATH)
 
-W = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-H = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+# W = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+# H = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+
+W, H = 1920, 1080
 
 F = 525
 
