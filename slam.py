@@ -65,14 +65,19 @@ def process_frames(img: np.ndarray):
         if f2.pts[idx] is not None:
             f2.pts[idx].add_observation(f1, idx1[i])
 
+    good_pts4d = np.array([f1.pts[i] is None for i in idx1])
+
     # Homogeneous 3d Coords
-    pts4d = triangulate(f1.pose, f2.pose, f1.kps[idx1], f2.kps[idx2])
-    pts4d /= pts4d[:, 3:]
+    pts_tri_local = triangulate(Rt, np.eye(4), f1.kps[idx1], f2.kps[idx2])
+    good_pts4d &= np.abs(pts_tri_local[:, 3]) > 0.005
+    
+    pts_tri_local /= pts_tri_local[:, 3:]
+    good_pts4d &= pts_tri_local[:, 2] > 0
 
+    # project into world
+    pts4d = np.dot(np.linalg.inv(f1.pose), pts_tri_local.T).T
 
-    unmatched_points = np.array([f1.pts[i] is None for i in idx1])
-    print("Adding:  %d points" % np.sum(unmatched_points))
-    good_pts4d = (np.abs(pts4d[:, 3]) > 0.005) & (pts4d[:, 2] > 0) & unmatched_points
+    print("Adding:  %d points" % np.sum(good_pts4d))
 
     for i, p in enumerate(pts4d):
         if not good_pts4d[i]:

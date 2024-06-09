@@ -49,6 +49,8 @@ class Map(object):
         # add points to frames
         PT_ID_OFFSET = 0x1000
         for p in self.points:
+            if not any([f in local_frames for f in p.frames]):
+                continue
             pt = g2o.VertexSBAPointXYZ()
             pt.set_id(p.id + PT_ID_OFFSET)
             pt.set_estimate(p.pt[0:3])
@@ -88,7 +90,7 @@ class Map(object):
                 continue
             est = vert.estimate()
 
-            old_point = len(p.frames) == 2 and p.frames[-1].id < (len(self.frames)-10)
+            old_point = len(p.frames) == 2 and p.frames[-1] not in local_frames
 
             #Reprojection Error
             errs = []
@@ -99,9 +101,9 @@ class Map(object):
                 errs.append(np.linalg.norm(proj-uv))
             
             #cull
-            if (old_point and np.mean(errs) > 20) or np.mean(errs) > 100:
-                p.delete()
-                continue
+            # if (old_point and np.mean(errs) > 20) or np.mean(errs) > 100:
+            #     p.delete()
+            #     continue
 
             p.pt = np.array(est)
             new_points.append(p)        
