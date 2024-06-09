@@ -6,6 +6,9 @@ import g2o
 from multiprocessing import Queue, Process
 from frame import Frame, pose_rt
 
+LOCAL_WINDOW = 20
+
+
 class Map(object):
     def __init__(self, W, H):
         self.frames: list[Frame] = []
@@ -30,6 +33,8 @@ class Map(object):
         opt.set_algorithm(solver)
         robust_kernel=g2o.RobustKernelHuber(np.sqrt(5.991))
 
+        local_frames = self.frames[-LOCAL_WINDOW:]
+
         # Add frames to Graph
         for f in self.frames:
             sbacam = g2o.SBACam(g2o.SE3Quat(f.pose[0:3, 0:3], f.pose[0:3, 3]))
@@ -38,7 +43,7 @@ class Map(object):
             v_se3 = g2o.VertexCam()
             v_se3.set_id(f.id)
             v_se3.set_estimate(sbacam)
-            v_se3.set_fixed(f.id <= 1)
+            v_se3.set_fixed(f.id <= 1 or f not in local_frames)
             opt.add_vertex(v_se3)
 
         # add points to frames
@@ -64,7 +69,7 @@ class Map(object):
         # opt.set_verbose(True)
         opt.initialize_optimization()
         opt.optimize(50)
-        print(f"Optimizer: {opt.chi2()} error")
+        print(f"Optimizer: {opt.chi2()} units of error")
 
 
         # Put frames back
@@ -77,11 +82,13 @@ class Map(object):
         new_points = []
         # Put points back and cull
         for p in self.points:
-            est = opt.vertex(p.id + PT_ID_OFFSET).estimate()
+            vert = opt.vertex(p.id + PT_ID_OFFSET)
+            if vert is None:
+                new_points.append(p)
+                continue
+            est = vert.estimate()
 
-            # if len(p.frames) == 2 and p.frames[-1].id < (len(self.frames)-5):
-            #     p.delete()
-            #     continue
+            old_point = len(p.frames) == 2 and p.frames[-1].id < (len(self.frames)-10)
 
             #Reprojection Error
             errs = []
@@ -90,9 +97,12 @@ class Map(object):
                 proj = np.dot(f.K, est)
                 proj = proj[0:2] / proj[2]
                 errs.append(np.linalg.norm(proj-uv))
-            if np.mean(errs) > 100:
+            
+            #cull
+            if (old_point and np.mean(errs) > 20) or np.mean(errs) > 100:
                 p.delete()
                 continue
+
             p.pt = np.array(est)
             new_points.append(p)        
         self.points = new_points
