@@ -68,7 +68,6 @@ class Map(object):
                 edge.set_robust_kernel(robust_kernel)
                 opt.add_edge(edge)
 
-        # opt.set_verbose(True)
         opt.initialize_optimization()
         opt.optimize(50)
         print(f"Optimizer: {opt.chi2()} units of error")
@@ -96,17 +95,18 @@ class Map(object):
             errs = []
             for f in p.frames:
                 uv = f.kpus[f.pts.index(p)]
-                proj = np.dot(f.K, est)
+                proj = np.dot(np.dot(f.K, np.linalg.inv(f.pose)[:3]),
+                      np.array([est[0], est[1], est[2], 1.0]))
                 proj = proj[0:2] / proj[2]
                 errs.append(np.linalg.norm(proj-uv))
             
             #cull
-            # if (old_point and np.mean(errs) > 20) or np.mean(errs) > 100:
-            #     p.delete()
-            #     continue
+            if (old_point and np.mean(errs) > 20) or np.mean(errs) > 100:
+                p.delete()
+                continue
 
             p.pt = np.array(est)
-            new_points.append(p)        
+            new_points.append(p)      
         self.points = new_points
 
     def viewer_thread(self):
@@ -133,22 +133,21 @@ class Map(object):
 
 
     def viewer_refresh(self):
-        if self.state is None or not self.q.empty():
+        if not self.q.empty():
             self.state = self.q.get()
 
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-        # gl.glClearColor(1.0, 1.0, 1.0, 1.0)
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
 
         self.dcam.Activate(self.scam)
 
-        gl.glColor3f(0.0, 1.0, 0.0)
-        pangolin.DrawCameras(self.state[0])
+        if self.state is not None:
+            gl.glColor3f(0.0, 1.0, 0.0)
+            pangolin.DrawCameras(self.state[0])
 
-
-        gl.glPointSize(5)
-        gl.glColor3f(1.0, 0.0, 0.0)
-        pangolin.DrawPoints(self.state[1], self.state[2])
+            gl.glPointSize(5)
+            gl.glColor3f(1.0, 0.0, 0.0)
+            pangolin.DrawPoints(self.state[1], self.state[2])
 
         pangolin.FinishFrame()
 
