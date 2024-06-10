@@ -37,7 +37,8 @@ class Map(object):
 
         # Add frames to Graph
         for f in self.frames:
-            sbacam = g2o.SBACam(g2o.SE3Quat(f.pose[0:3, 0:3], f.pose[0:3, 3]))
+            pose = np.linalg.inv(f.pose)
+            sbacam = g2o.SBACam(g2o.SE3Quat(pose[0:3, 0:3], pose[0:3, 3]))
             sbacam.set_cam(f.K[0][0], f.K[1][1], f.K[0][2], f.K[1][2], 1.0)
 
             v_se3 = g2o.VertexCam()
@@ -78,7 +79,7 @@ class Map(object):
             est = opt.vertex(f.id).estimate()
             R = est.rotation().matrix()
             t = est.translation()
-            f.pose = pose_rt(R, t)
+            f.pose = np.linalg.inv(pose_rt(R, t))
 
         new_points = []
         # Put points back and cull
@@ -95,7 +96,7 @@ class Map(object):
             errs = []
             for f in p.frames:
                 uv = f.kpus[f.pts.index(p)]
-                proj = np.dot(np.dot(f.K, np.linalg.inv(f.pose)[:3]),
+                proj = np.dot(np.dot(f.K, f.pose[:3]),
                       np.array([est[0], est[1], est[2], 1.0]))
                 proj = proj[0:2] / proj[2]
                 errs.append(np.linalg.norm(proj-uv))
@@ -159,7 +160,8 @@ class Map(object):
         poses, pts, colors = [], [], []
 
         for f in self.frames:
-            poses.append(f.pose)
+            # Invert pose for display only!!
+            poses.append(np.linalg.inv(f.pose))
 
         for p in self.points:
             pts.append(p.pt)

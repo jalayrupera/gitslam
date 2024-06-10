@@ -32,8 +32,8 @@ mapp = Map(W, H)
 
 def triangulate(pose1, pose2, pts1, pts2):
     ret = np.zeros((pts1.shape[0],4))
-    pose1 = np.linalg.inv(pose1)
-    pose2 = np.linalg.inv(pose2)
+    # pose1 = np.linalg.inv(pose1)
+    # pose2 = np.linalg.inv(pose2)
     
     # Linear Triangulation method
     for i, pt in enumerate(zip(pts1, pts2)):

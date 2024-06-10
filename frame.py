@@ -43,7 +43,7 @@ def extract_rt(E):
 
     t = U[:, 2]
 
-    return pose_rt(R, t)
+    return np.linalg.inv(pose_rt(R, t))
 
 
 def match_frames(f1, f2):
